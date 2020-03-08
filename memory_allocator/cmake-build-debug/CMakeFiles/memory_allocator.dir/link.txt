@@ -1,0 +1,1 @@
+C:/cygwin64/bin/gcc.exe -g  -Wl,--enable-auto-import CMakeFiles/memory_allocator.dir/main.c.o  -o memory_allocator.exe -Wl,--out-implib,libmemory_allocator.dll.a -Wl,--major-image-version,0,--minor-image-version,0 
