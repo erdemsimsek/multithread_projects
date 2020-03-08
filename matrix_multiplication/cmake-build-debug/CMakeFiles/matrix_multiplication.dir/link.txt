@@ -1,1 +1,0 @@
-C:/cygwin64/bin/gcc.exe -g  -Wl,--enable-auto-import CMakeFiles/matrix_multiplication.dir/main.c.o  -o matrix_multiplication.exe -Wl,--out-implib,libmatrix_multiplication.dll.a -Wl,--major-image-version,0,--minor-image-version,0 
