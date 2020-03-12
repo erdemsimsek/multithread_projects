@@ -9,7 +9,11 @@
 /cygdrive/c/Users/erdem/Documents/C++ Work/L19/file_searcher/main.c
 stdio.h
 -
-stdint.h
+stdlib.h
+-
+string.h
+-
+stdbool.h
 -
 pthread.h
 -
