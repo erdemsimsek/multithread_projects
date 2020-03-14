@@ -17,4 +17,12 @@ stdbool.h
 -
 pthread.h
 -
+mqueue.h
+-
+fcntl.h
+-
+errno.h
+-
+semaphore.h
+-
 

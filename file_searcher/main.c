@@ -3,8 +3,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <mqueue.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <semaphore.h>
 
-#define NUM_CHARACTER_PER_THREAD     (100000u)
+#define NUM_CHARACTER_PER_THREAD     (1000000u)
+#define QUEUE_NAME  "test_queue"
 
 typedef struct{
     char fileName[48];
@@ -13,6 +18,8 @@ typedef struct{
 
 unsigned int getThreadIndex();
 void * getStartToSearch(searchParameters const * pParams);
+void * displayText();
+void sendToQueue(unsigned int index);
 void getFilePositionForThread(FILE const * fp, unsigned int * const pArray, unsigned int numThread);
 unsigned int getNumberOfThread(unsigned int numChar);
 unsigned int getNumberOfCharacter(FILE const * const fp);
@@ -20,16 +27,33 @@ unsigned int getNumberOfCharacter(FILE const * const fp);
 static int g_threadIndex = -1;
 static pthread_mutex_t g_threadIndexLock;
 static unsigned int * pFilePosition = NULL;
+static mqd_t g_msg_queue;
 
 int main() {
 
     unsigned int numberOfCharacter = 0, numberOfThread = 0;
     int * pThreadReturn = NULL;
     pthread_t * pThreadArr = NULL;
+
+    int openFlags = 0;
+    int displayThread;
+    pthread_t displayThreadArr;
+
     FILE * fhandle;
     searchParameters searchParams;
+    struct mq_attr attr;
 
     pthread_mutex_init(&g_threadIndexLock, NULL);
+
+    openFlags = O_CREAT | O_RDWR;
+    attr.mq_maxmsg = 20;
+    attr.mq_msgsize = sizeof(unsigned int);
+    attr.mq_flags = 0;
+    g_msg_queue = mq_open("myqueue",openFlags,&attr);
+
+    if(g_msg_queue == (-1)){
+        printf("mq_open failure %d\n", errno);
+    }
 
     memcpy(searchParams.fileName, "../sample_file.txt", 18);
     memcpy(searchParams.searchText, "entertaining", 12);
@@ -38,6 +62,9 @@ int main() {
     numberOfCharacter = getNumberOfCharacter(fhandle);
     numberOfThread = getNumberOfThread(numberOfCharacter);
 
+    printf("Number of character %d \n", numberOfCharacter);
+    printf("Number of thread %d \n", numberOfThread);
+
     pFilePosition = malloc(sizeof(unsigned int));
     pThreadArr = malloc(sizeof(pthread_t));
     pThreadReturn = malloc(sizeof(int));
@@ -45,10 +72,7 @@ int main() {
     getFilePositionForThread(fhandle,pFilePosition,numberOfThread);
     fclose(fhandle);
 
-    printf("Number of lines %d, Number of thread %d", numberOfCharacter, numberOfThread);
-
     size_t threadIndex = 0;
-
     for(threadIndex = 0; threadIndex < numberOfThread; threadIndex++){
         pThreadReturn[threadIndex] = pthread_create(&pThreadArr[threadIndex], NULL, getStartToSearch, (void *)&searchParams);
     }
@@ -57,37 +81,73 @@ int main() {
         pthread_join(pThreadArr[threadIndex], NULL);
     }
 
+    displayThread = pthread_create(&displayThreadArr, NULL, displayText, NULL);
+    pthread_join(&displayThreadArr, NULL);
+
+    mq_unlink("myqueue");
+    mq_close(g_msg_queue);
+
     return 0;
+}
+
+void *displayText(){
+    int received = 1;
+
+    while(received > 0){
+        received = mq_receive(g_msg_queue, &index, sizeof(unsigned int), 0);
+
+        if(received == (-1)){
+            printf("queue receive error %d\n", errno);
+        }
+        else{
+            printf("Index %d\n", index);
+        }
+    }
+
+
 }
 
 void * getStartToSearch(searchParameters const * pParams){
     int threadIndex;
+    unsigned int basePoint, endPoint;
     size_t index = 0;
     bool isFound = false;
-
+    unsigned int as;
     FILE * file;
     file = fopen("../sample_file.txt", "r");
 
-
     if(file != NULL){
         threadIndex = getThreadIndex();
-        fseek(file, pFilePosition[threadIndex], SEEK_SET);
-        while(ftell(file) < (pFilePosition[threadIndex + 1])){
+        basePoint = pFilePosition[threadIndex];
+        endPoint = pFilePosition[threadIndex + 1];
+
+        if(endPoint < basePoint){
+            fseek(file, 0, SEEK_END);
+            endPoint = ftell(file);
+        }
+
+        fseek(file, basePoint, SEEK_SET);
+        while(ftell(file) < endPoint){
             for(index = 0; index < (strlen(pParams->searchText) - 1); index++){
-                if(fgetc(file) != pParams->searchText[index]){
-                    isFound = false;
+
+                if(fgetc(file) == pParams->searchText[index]){
+                    isFound = true;
                 }
                 else{
-                    isFound = true;
+                    isFound = false;
+                    break;
                 }
             }
             if(isFound){
-                printf("%d\n", ftell(file));
+                as = ftell(file);
+                sendToQueue(as);
+                //printf("%d\n", ftell(file));
                 isFound = false;
             }
         }
         fclose(file);
     }
+
 }
 
 unsigned int getThreadIndex(){
@@ -133,4 +193,16 @@ unsigned int getNumberOfCharacter(FILE const * const fp){
         numChar = ftell(fp);
     }
     return numChar;
+}
+
+void sendToQueue(unsigned int index){
+    int status = 0;
+
+    status = mq_send(g_msg_queue, index, sizeof(unsigned int), 1);
+    if(status == (-1)){
+        printf("queue send fail %d\n",errno);
+    }
+    else{
+        printf("queue send success\n");
+    }
 }
