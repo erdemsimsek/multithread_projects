@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/cygdrive/c/Users/erdem/Documents/C++ Work/L19/posix_message/main.c
+stdio.h
+-
+mqueue.h
+-
+sys/fcntl.h
+-
+stdbool.h
+-
+
