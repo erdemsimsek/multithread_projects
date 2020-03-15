@@ -23,20 +23,21 @@ void * printFunction(void * pParams){
     int val = *(int *)pParams;
     size_t ind = 0;
 
-    pthread_mutex_lock(&lock);
-    //sem_wait(&sem);
-    for(ind = 0; ind < 100000; ind++){
+    //pthread_mutex_lock(&lock);
+    sem_wait(&sem);
+    for(ind = 0; ind < 1000; ind++){
         if(val == 1){
             incrementCounter();
         }
         else{
             decrementCounter();
         }
+        //printf("This is thread %d. \n", val);
     }
 
     printf("This is thread %d. Index number is %d\n",val, index);
-    //sem_post(&sem);
-    pthread_mutex_unlock(&lock);
+    sem_post(&sem);
+    //pthread_mutex_unlock(&lock);
 }
 
 void * waitInfinite(void * pParams){
@@ -44,10 +45,8 @@ void * waitInfinite(void * pParams){
 }
 
 int main() {
-    thRet1 = pthread_create(&th1, NULL, printFunction, (void *)&param1);
-    thRet2 = pthread_create(&th2, NULL, printFunction, (void *)&param2);
 
-    if(sem_init(&sem, 0, 1) == 0){
+    if(sem_init(&sem, 0, 8) == 0){
         printf("semaphore creation successful\n");
     }
 
@@ -55,10 +54,15 @@ int main() {
         printf("mutex creation successful\n");
     }
 
+    thRet1 = pthread_create(&th1, NULL, printFunction, (void *)&param1);
+    thRet2 = pthread_create(&th2, NULL, printFunction, (void *)&param2);
+
 //    pthread_join(th1, NULL);
 //    pthread_join(th2, NULL);
 
-    while(1);
+    while (1);
+
+    pthread_mutex_destroy(&lock);
 
     return 0;
 }
